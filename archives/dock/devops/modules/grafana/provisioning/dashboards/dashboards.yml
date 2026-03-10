@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: OPC DevOps
+    orgId: 1
+    folder: OPC DevOps
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

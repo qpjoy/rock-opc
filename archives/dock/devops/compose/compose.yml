@@ -153,6 +153,7 @@ services:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ../modules/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../modules/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
 
   grafana:
@@ -163,6 +164,7 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_METRICS_ENABLED: "true"
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
@@ -171,6 +173,57 @@ services:
       - ../modules/grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
+
+  node-exporter:
+    <<: *opc-defaults
+    profiles: ["monitoring", "full"]
+    image: prom/node-exporter:v1.8.1
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+
+  cadvisor:
+    <<: *opc-defaults
+    profiles: ["monitoring", "full"]
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    ports:
+      - "${CADVISOR_PORT:-8081}:8080"
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+  elasticsearch-exporter:
+    <<: *opc-defaults
+    profiles: ["elk", "full"]
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.7.0
+    command:
+      - --es.uri=http://elasticsearch:9200
+    ports:
+      - "${ELASTICSEARCH_EXPORTER_PORT:-9114}:9114"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  blackbox-exporter:
+    <<: *opc-defaults
+    profiles: ["monitoring", "full"]
+    image: prom/blackbox-exporter:v0.25.0
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+    ports:
+      - "${BLACKBOX_EXPORTER_PORT:-9115}:9115"
+    volumes:
+      - ../modules/prometheus/blackbox:/etc/blackbox:ro
 
   jenkins:
     <<: *opc-defaults

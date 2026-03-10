@@ -1,0 +1,38 @@
+groups:
+  - name: opc-devops-health
+    rules:
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus target down"
+          description: "Target {{ $labels.instance }} in job {{ $labels.job }} has been down for more than 2 minutes."
+
+      - alert: ElasticsearchClusterNotGreen
+        expr: elasticsearch_cluster_health_status{color=~"yellow|red"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elasticsearch cluster health degraded"
+          description: "Elasticsearch cluster is {{ $labels.color }} for more than 5 minutes."
+
+      - alert: FilebeatOutputFailures
+        expr: rate(libbeat_output_events_failed_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Filebeat output failures detected"
+          description: "Filebeat has output failures over the last 5 minutes."
+
+      - alert: ContainerHighCpu
+        expr: rate(container_cpu_usage_seconds_total{name!="", image!=""}[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container CPU usage is high"
+          description: "Container {{ $labels.name }} is consuming more than 0.8 CPU cores."

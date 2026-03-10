@@ -2,6 +2,11 @@
 
 The current integrated stack provisions Prometheus as the default datasource.
 
+Current baseline also provisions:
+
+- `OPC DevOps` dashboard folder
+- `OPC DevOps Overview` dashboard
+
 Planned additions:
 
 - Prebuilt dashboards

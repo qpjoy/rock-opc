@@ -82,3 +82,19 @@ This startup includes `filebeat` and a one-shot `elk-setup` initializer.
 - Externalize Jenkins CasC and seed jobs.
 - Split GitLab into a lighter dev profile and a production-oriented profile.
 - Add Nginx TLS termination and upstream routing conventions.
+
+## Observability baseline
+
+The monitoring profile now includes:
+
+- Prometheus
+- Grafana with a provisioned overview dashboard
+- node-exporter
+- cAdvisor
+- elasticsearch-exporter
+- blackbox-exporter
+
+Platform note:
+
+- `node-exporter` and especially `cadvisor` are most complete on Linux hosts.
+- On macOS and Windows with Docker Desktop, container and host metrics may be partial because they reflect the Linux VM backing Docker rather than the native host.
