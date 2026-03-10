@@ -1,0 +1,5 @@
+http.host: 0.0.0.0
+pipeline.ordered: auto
+config.reload.automatic: true
+api.http.host: 0.0.0.0
+log.level: info

@@ -1,0 +1,29 @@
+filebeat.inputs:
+  - type: filestream
+    id: opc-sample-logs
+    enabled: true
+    paths:
+      - /var/log/opc/*.log
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+
+processors:
+  - add_fields:
+      target: ""
+      fields:
+        service: opc-sample
+        env: dev
+  - add_host_metadata: {}
+  - add_cloud_metadata: {}
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+http:
+  enabled: true
+  host: 0.0.0.0
+  port: 5066
+
+logging.level: info

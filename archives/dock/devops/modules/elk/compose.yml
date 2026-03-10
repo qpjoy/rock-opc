@@ -1,0 +1,126 @@
+name: ${COMPOSE_PROJECT_NAME:-opc-elk}
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.13.4}
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.license.self_generated.type: basic
+      ES_JAVA_OPTS: -Xms${ELASTICSEARCH_HEAP:-1g} -Xmx${ELASTICSEARCH_HEAP:-1g}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - elasticsearch_snapshots:/usr/share/elasticsearch/snapshots
+      - ./config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+    networks:
+      - elk
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.13.4}
+    restart: unless-stopped
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      SERVER_PUBLICBASEURL: http://localhost:${KIBANA_PORT:-5601}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    mem_limit: ${KIBANA_MEMORY_LIMIT:-1g}
+    volumes:
+      - ./config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - elk
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.13.4}
+    restart: unless-stopped
+    environment:
+      LS_JAVA_OPTS: -Xms${LOGSTASH_HEAP:-512m} -Xmx${LOGSTASH_HEAP:-512m}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${LOGSTASH_BEATS_PORT:-5044}:5044"
+      - "${LOGSTASH_TCP_JSON_PORT:-5000}:5000"
+    volumes:
+      - ./config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./pipeline:/usr/share/logstash/pipeline:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - elk
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION:-8.13.4}
+    restart: unless-stopped
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    ports:
+      - "${FILEBEAT_HTTP_PORT:-5066}:5066"
+    volumes:
+      - ./config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./samples/logs:/var/log/opc:ro
+      - filebeat_data:/usr/share/filebeat/data
+    depends_on:
+      logstash:
+        condition: service_started
+    networks:
+      - elk
+
+  elk-setup:
+    image: curlimages/curl:8.7.1
+    restart: "no"
+    command:
+      - /bin/sh
+      - /setup/init-elastic.sh
+    volumes:
+      - ./setup:/setup:ro
+      - ./assets:/assets:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - elk
+
+  elk-snapshot-scheduler:
+    image: curlimages/curl:8.7.1
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - /setup/snapshot-scheduler.sh
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      SNAPSHOT_REPOSITORY: opc_snapshots
+      SNAPSHOT_INTERVAL_SECONDS: ${SNAPSHOT_INTERVAL_SECONDS:-86400}
+      SNAPSHOT_RETENTION_COUNT: ${SNAPSHOT_RETENTION_COUNT:-7}
+    volumes:
+      - ./setup:/setup:ro
+    depends_on:
+      elk-setup:
+        condition: service_completed_successfully
+    networks:
+      - elk
+
+networks:
+  elk:
+    driver: bridge
+
+volumes:
+  elasticsearch_data:
+  elasticsearch_snapshots:
+  filebeat_data:

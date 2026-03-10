@@ -1,0 +1,47 @@
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Node / pnpm / Rush
+node_modules/
+.pnpm-store/
+.rush/
+common/temp/
+common/autoinstallers/*/node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build / cache
+dist/
+build/
+coverage/
+.cache/
+.turbo/
+
+# Docker / DevOps runtime data
+archives/dock/devops/**/data/
+archives/dock/devops/**/logs/
+archives/dock/devops/**/tmp/
+archives/dock/devops/**/.env
+archives/dock/devops/**/.env.local
+archives/dock/devops/modules/nginx/certs/*
+!archives/dock/devops/modules/nginx/certs/.gitkeep
+
+# Keep placeholder files if they are added later
+!**/.gitkeep

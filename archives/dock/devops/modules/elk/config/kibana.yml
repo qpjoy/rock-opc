@@ -1,0 +1,5 @@
+server.name: opc-kibana
+server.host: 0.0.0.0
+i18n.locale: zh-CN
+telemetry.enabled: false
+monitoring.ui.container.elasticsearch.enabled: true
