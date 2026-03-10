@@ -114,9 +114,20 @@ services:
     restart: "no"
     command:
       - /bin/sh
-      - /setup/init-elastic.sh
+      - -ec
+      - |
+        es_url="${ELASTICSEARCH_URL:-http://elasticsearch:9200}"
+        ilm_policy_name="${ILM_POLICY_NAME:-opc-logs-policy}"
+        ilm_policy_file="${ILM_POLICY_FILE:-/assets/ilm-policy.json}"
+        index_template_name="${INDEX_TEMPLATE_NAME:-opc-logs-template}"
+        index_template_file="${INDEX_TEMPLATE_FILE:-/assets/index-template.json}"
+        snapshot_repository_name="${SNAPSHOT_REPOSITORY_NAME:-opc_snapshots}"
+        snapshot_repository_file="${SNAPSHOT_REPOSITORY_FILE:-/assets/snapshot-repository.json}"
+        until curl -fsS "${es_url}/_cluster/health" >/dev/null 2>&1; do sleep 5; done
+        curl -fsS -X PUT "${es_url}/_ilm/policy/${ilm_policy_name}" -H "Content-Type: application/json" --data @"${ilm_policy_file}" >/dev/null
+        curl -fsS -X PUT "${es_url}/_index_template/${index_template_name}" -H "Content-Type: application/json" --data @"${index_template_file}" >/dev/null
+        curl -fsS -X PUT "${es_url}/_snapshot/${snapshot_repository_name}" -H "Content-Type: application/json" --data @"${snapshot_repository_file}" >/dev/null
     volumes:
-      - ../modules/elk/setup:/setup:ro
       - ../modules/elk/assets:/assets:ro
     depends_on:
       elasticsearch:
@@ -128,14 +139,32 @@ services:
     image: curlimages/curl:8.7.1
     command:
       - /bin/sh
-      - /setup/snapshot-scheduler.sh
+      - -ec
+      - |
+        es_url="${ELASTICSEARCH_URL:-http://elasticsearch:9200}"
+        repo="${SNAPSHOT_REPOSITORY:-opc_snapshots}"
+        interval="${SNAPSHOT_INTERVAL_SECONDS:-86400}"
+        retention="${SNAPSHOT_RETENTION_COUNT:-7}"
+        until curl -fsS "${es_url}/_cluster/health" >/dev/null 2>&1; do sleep 5; done
+        while true; do
+          snapshot_id="auto-$(date +%Y%m%d%H%M%S)"
+          curl -fsS -X PUT "${es_url}/_snapshot/${repo}/${snapshot_id}?wait_for_completion=true" >/dev/null
+          snapshots="$(curl -fsS "${es_url}/_cat/snapshots/${repo}?h=id&s=id" || true)"
+          count="$(printf '%s\n' "${snapshots}" | sed '/^$/d' | wc -l | tr -d ' ')"
+          if [ "${count}" -gt "${retention}" ]; then
+            delete_count=$((count - retention))
+            printf '%s\n' "${snapshots}" | sed '/^$/d' | head -n "${delete_count}" | while IFS= read -r snapshot_id; do
+              [ -z "${snapshot_id}" ] && continue
+              curl -fsS -X DELETE "${es_url}/_snapshot/${repo}/${snapshot_id}" >/dev/null
+            done
+          fi
+          sleep "${interval}"
+        done
     environment:
       ELASTICSEARCH_URL: http://elasticsearch:9200
       SNAPSHOT_REPOSITORY: opc_snapshots
       SNAPSHOT_INTERVAL_SECONDS: ${SNAPSHOT_INTERVAL_SECONDS:-86400}
       SNAPSHOT_RETENTION_COUNT: ${SNAPSHOT_RETENTION_COUNT:-7}
-    volumes:
-      - ../modules/elk/setup:/setup:ro
     depends_on:
       elk-setup:
         condition: service_completed_successfully
