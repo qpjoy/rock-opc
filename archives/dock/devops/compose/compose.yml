@@ -18,6 +18,21 @@ x-elastic-env: &elastic-env
   TZ: ${TZ:-Asia/Shanghai}
 
 services:
+  elk-volume-init:
+    <<: *opc-defaults
+    profiles: ["elk", "full"]
+    image: busybox:1.36
+    user: root
+    restart: "no"
+    command:
+      - sh
+      - -ec
+      - |
+        mkdir -p /snapshots
+        chown -R 1000:0 /snapshots
+    volumes:
+      - elasticsearch_snapshots:/snapshots
+
   nginx:
     <<: *opc-defaults
     profiles: ["gateway", "full"]
@@ -52,6 +67,9 @@ services:
       memlock:
         soft: -1
         hard: -1
+    depends_on:
+      elk-volume-init:
+        condition: service_completed_successfully
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
       - elasticsearch_snapshots:/usr/share/elasticsearch/snapshots
