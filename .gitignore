@@ -45,5 +45,3 @@ archives/dock/devops/modules/nginx/certs/*
 
 # Keep placeholder files if they are added later
 !**/.gitkeep
-
-*_specs

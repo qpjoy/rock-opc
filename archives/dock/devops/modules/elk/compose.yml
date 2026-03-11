@@ -118,7 +118,7 @@ services:
       SNAPSHOT_REPOSITORY_FILE: /assets/snapshot-repository.json
     volumes:
       - ./assets:/assets:ro
-      - ./node_specs:/bootstrap:ro
+      - ./node_scripts:/bootstrap:ro
     depends_on:
       elasticsearch:
         condition: service_healthy

@@ -78,6 +78,8 @@ Key env vars from `.env`:
 
 See `docs/restore-drill.md` for the recovery rehearsal flow.
 
+Bootstrap helper scripts live in `node_scripts/`.
+
 ## Hot/Warm overlay
 
 Pre-production topology is available in `overlays/hot-warm-compose.yml`.

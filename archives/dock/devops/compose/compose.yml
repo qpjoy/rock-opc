@@ -160,7 +160,7 @@ services:
       SNAPSHOT_REPOSITORY_FILE: /assets/snapshot-repository.json
     volumes:
       - ../modules/elk/assets:/assets:ro
-      - ../modules/elk/node_specs:/bootstrap:ro
+      - ../modules/elk/node_scripts:/bootstrap:ro
     depends_on:
       elasticsearch:
         condition: service_healthy
