@@ -137,19 +137,35 @@ services:
         repo="$${SNAPSHOT_REPOSITORY:-opc_snapshots}"
         interval="$${SNAPSHOT_INTERVAL_SECONDS:-86400}"
         retention="$${SNAPSHOT_RETENTION_COUNT:-7}"
-        until curl -fsS "$${es_url}/_cluster/health" >/dev/null 2>&1; do sleep 5; done
+        echo "[elk-snapshot-scheduler] waiting for elasticsearch at $${es_url}"
+        until curl -fsS "$${es_url}/_cluster/health" >/dev/null 2>&1; do
+          echo "[elk-snapshot-scheduler] elasticsearch not ready yet, retry in 5s"
+          sleep 5
+        done
+        echo "[elk-snapshot-scheduler] elasticsearch is reachable, using repository $${repo}"
         while true; do
           snapshot_id="auto-$(date +%Y%m%d%H%M%S)"
-          curl -fsS -X PUT "$${es_url}/_snapshot/$${repo}/$${snapshot_id}?wait_for_completion=true" >/dev/null
-          snapshots="$$(curl -fsS "$${es_url}/_cat/snapshots/$${repo}?h=id&s=id" || true)"
-          count="$$(printf '%s\n' "$${snapshots}" | sed '/^$$/d' | wc -l | tr -d ' ')"
-          if [ "$${count}" -gt "$${retention}" ]; then
-            delete_count=$((count - retention))
-            printf '%s\n' "$${snapshots}" | sed '/^$$/d' | head -n "$${delete_count}" | while IFS= read -r snapshot_id; do
-              [ -z "$${snapshot_id}" ] && continue
-              curl -fsS -X DELETE "$${es_url}/_snapshot/$${repo}/$${snapshot_id}" >/dev/null
-            done
+          echo "[elk-snapshot-scheduler] creating snapshot $${snapshot_id}"
+          if curl -fsS -X PUT "$${es_url}/_snapshot/$${repo}/$${snapshot_id}?wait_for_completion=true" >/dev/null; then
+            echo "[elk-snapshot-scheduler] snapshot $${snapshot_id} created successfully"
+            snapshots="$$(curl -fsS "$${es_url}/_cat/snapshots/$${repo}?h=id&s=id" || true)"
+            count="$$(printf '%s\n' "$${snapshots}" | sed '/^$$/d' | wc -l | tr -d ' ')"
+            echo "[elk-snapshot-scheduler] repository $${repo} currently has $${count} snapshots, retention=$${retention}"
+            if [ "$${count}" -gt "$${retention}" ]; then
+              delete_count=$$((count - retention))
+              echo "[elk-snapshot-scheduler] pruning $${delete_count} old snapshots"
+              printf '%s\n' "$${snapshots}" | sed '/^$$/d' | head -n "$${delete_count}" | while IFS= read -r old_snapshot_id; do
+                [ -z "$${old_snapshot_id}" ] && continue
+                echo "[elk-snapshot-scheduler] deleting snapshot $${old_snapshot_id}"
+                if ! curl -fsS -X DELETE "$${es_url}/_snapshot/$${repo}/$${old_snapshot_id}" >/dev/null; then
+                  echo "[elk-snapshot-scheduler] failed to delete snapshot $${old_snapshot_id}, will retry on next cycle"
+                fi
+              done
+            fi
+          else
+            echo "[elk-snapshot-scheduler] snapshot $${snapshot_id} failed, likely repository permission or repository state issue; will retry after sleep"
           fi
+          echo "[elk-snapshot-scheduler] sleeping $${interval}s before next run"
           sleep "$${interval}"
         done
     environment:
