@@ -1,0 +1,6 @@
+services:
+  node-exporter:
+    profiles: ["monitoring-host-linux"]
+
+  cadvisor:
+    profiles: ["monitoring-host-linux"]

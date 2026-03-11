@@ -20,6 +20,13 @@ cp ../../.env.example .env
 docker compose up -d
 ```
 
+On Windows with Git Bash, you can also start from the DevOps root:
+
+```bash
+cd archives/dock/devops
+./scripts/windows-up.sh elk
+```
+
 After startup, `elk-setup` registers:
 
 - ILM policy: `opc-logs-policy`
@@ -38,6 +45,18 @@ Send JSON logs to Logstash:
 
 ```bash
 printf '{"service":"demo","level":"info","message":"hello elk"}\n' | nc localhost 5000
+```
+
+If `nc` is unavailable on Windows, use PowerShell:
+
+```powershell
+$client = New-Object System.Net.Sockets.TcpClient('127.0.0.1',5000)
+$stream = $client.GetStream()
+$writer = New-Object System.IO.StreamWriter($stream)
+$writer.WriteLine('{"service":"demo","level":"info","message":"hello elk"}')
+$writer.Flush()
+$writer.Dispose()
+$client.Dispose()
 ```
 
 Filebeat also ships sample NDJSON logs from `samples/logs/`.

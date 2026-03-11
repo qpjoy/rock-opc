@@ -21,6 +21,31 @@
 2. Run integrated mode from `archives/dock/devops/compose`.
 3. Run standalone mode from the target module directory if you only need one stack.
 
+## Windows Quick Start
+
+If you use Git for Windows (`git-scm`) and Docker Desktop, start from Git Bash:
+
+```bash
+cd archives/dock/devops
+./scripts/windows-up.sh elk
+```
+
+Or from `cmd`:
+
+```bat
+cd archives\dock\devops
+scripts\windows-up.cmd elk
+```
+
+Integrated startup on Windows should apply the override file:
+
+```bash
+docker compose -f compose/compose.yml -f compose/compose.windows.yml --profile monitoring up -d
+docker compose -f compose/compose.yml -f compose/compose.windows.yml --profile full up -d
+```
+
+The Windows override disables Linux-only host exporters such as `node-exporter` and `cadvisor`.
+
 ### Integrated startup
 
 ```bash
@@ -65,6 +90,7 @@ This startup includes `filebeat` and a one-shot `elk-setup` initializer.
 - Linux: set `vm.max_map_count=262144` before starting Elasticsearch.
 - macOS and Windows: bind-mounting the Docker socket into Jenkins depends on Docker Desktop settings. If Docker-in-Docker is preferred later, split Jenkins agents into a separate module.
 - Paths in Compose use repository-relative mounts, so the same layout works on Windows, Linux, and macOS as long as startup happens from `archives/dock/devops`.
+- Windows users should keep Git checkout line endings under repository control. `.gitattributes` and `.editorconfig` are included for this reason.
 
 ## ELK best-practice direction
 

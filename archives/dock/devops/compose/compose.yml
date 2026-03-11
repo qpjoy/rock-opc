@@ -18,6 +18,22 @@ x-elastic-env: &elastic-env
   TZ: ${TZ:-Asia/Shanghai}
 
 services:
+  elk-volume-init:
+    <<: *opc-defaults
+    profiles: ["elk", "full"]
+    image: busybox:1.36
+    user: root
+    restart: "no"
+    command:
+      - sh
+      - -ec
+      - |
+        mkdir -p /snapshots
+        chown -R 1000:0 /snapshots
+        chmod -R ug+rwX /snapshots
+    volumes:
+      - elasticsearch_snapshots:/snapshots
+
   nginx:
     <<: *opc-defaults
     profiles: ["gateway", "full"]
@@ -52,6 +68,9 @@ services:
       memlock:
         soft: -1
         hard: -1
+    depends_on:
+      elk-volume-init:
+        condition: service_completed_successfully
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
       - elasticsearch_snapshots:/usr/share/elasticsearch/snapshots
@@ -110,14 +129,23 @@ services:
   elk-setup:
     <<: *opc-defaults
     profiles: ["elk", "full"]
-    image: curlimages/curl:8.7.1
+    image: node:20-alpine
     restart: "no"
+    working_dir: /bootstrap
     command:
-      - /bin/sh
-      - /setup/init-elastic.sh
+      - node
+      - /bootstrap/1.bootstrap-elastic.js
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ILM_POLICY_NAME: opc-logs-policy
+      ILM_POLICY_FILE: /assets/ilm-policy.json
+      INDEX_TEMPLATE_NAME: opc-logs-template
+      INDEX_TEMPLATE_FILE: /assets/index-template.json
+      SNAPSHOT_REPOSITORY_NAME: opc_snapshots
+      SNAPSHOT_REPOSITORY_FILE: /assets/snapshot-repository.json
     volumes:
-      - ../modules/elk/setup:/setup:ro
       - ../modules/elk/assets:/assets:ro
+      - ../modules/elk/node_specs:/bootstrap:ro
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -128,14 +156,48 @@ services:
     image: curlimages/curl:8.7.1
     command:
       - /bin/sh
-      - /setup/snapshot-scheduler.sh
+      - -ec
+      - |
+        es_url="$${ELASTICSEARCH_URL:-http://elasticsearch:9200}"
+        repo="$${SNAPSHOT_REPOSITORY:-opc_snapshots}"
+        interval="$${SNAPSHOT_INTERVAL_SECONDS:-86400}"
+        retention="$${SNAPSHOT_RETENTION_COUNT:-7}"
+        echo "[elk-snapshot-scheduler] waiting for elasticsearch at $${es_url}"
+        until curl -fsS "$${es_url}/_cluster/health" >/dev/null 2>&1; do
+          echo "[elk-snapshot-scheduler] elasticsearch not ready yet, retry in 5s"
+          sleep 5
+        done
+        echo "[elk-snapshot-scheduler] elasticsearch is reachable, using repository $${repo}"
+        while true; do
+          snapshot_id="auto-$(date +%Y%m%d%H%M%S)"
+          echo "[elk-snapshot-scheduler] creating snapshot $${snapshot_id}"
+          if curl -fsS -X PUT "$${es_url}/_snapshot/$${repo}/$${snapshot_id}?wait_for_completion=true" >/dev/null; then
+            echo "[elk-snapshot-scheduler] snapshot $${snapshot_id} created successfully"
+            snapshots="$$(curl -fsS "$${es_url}/_cat/snapshots/$${repo}?h=id&s=id" || true)"
+            count="$$(printf '%s\n' "$${snapshots}" | sed '/^$$/d' | wc -l | tr -d ' ')"
+            echo "[elk-snapshot-scheduler] repository $${repo} currently has $${count} snapshots, retention=$${retention}"
+            if [ "$${count}" -gt "$${retention}" ]; then
+              delete_count=$$((count - retention))
+              echo "[elk-snapshot-scheduler] pruning $${delete_count} old snapshots"
+              printf '%s\n' "$${snapshots}" | sed '/^$$/d' | head -n "$${delete_count}" | while IFS= read -r old_snapshot_id; do
+                [ -z "$${old_snapshot_id}" ] && continue
+                echo "[elk-snapshot-scheduler] deleting snapshot $${old_snapshot_id}"
+                if ! curl -fsS -X DELETE "$${es_url}/_snapshot/$${repo}/$${old_snapshot_id}" >/dev/null; then
+                  echo "[elk-snapshot-scheduler] failed to delete snapshot $${old_snapshot_id}, will retry on next cycle"
+                fi
+              done
+            fi
+          else
+            echo "[elk-snapshot-scheduler] snapshot $${snapshot_id} failed, likely repository permission or repository state issue; will retry after sleep"
+          fi
+          echo "[elk-snapshot-scheduler] sleeping $${interval}s before next run"
+          sleep "$${interval}"
+        done
     environment:
       ELASTICSEARCH_URL: http://elasticsearch:9200
       SNAPSHOT_REPOSITORY: opc_snapshots
       SNAPSHOT_INTERVAL_SECONDS: ${SNAPSHOT_INTERVAL_SECONDS:-86400}
       SNAPSHOT_RETENTION_COUNT: ${SNAPSHOT_RETENTION_COUNT:-7}
-    volumes:
-      - ../modules/elk/setup:/setup:ro
     depends_on:
       elk-setup:
         condition: service_completed_successfully
