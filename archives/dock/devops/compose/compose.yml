@@ -30,6 +30,7 @@ services:
       - |
         mkdir -p /snapshots
         chown -R 1000:0 /snapshots
+        chmod -R ug+rwX /snapshots
     volumes:
       - elasticsearch_snapshots:/snapshots
 
@@ -128,25 +129,23 @@ services:
   elk-setup:
     <<: *opc-defaults
     profiles: ["elk", "full"]
-    image: curlimages/curl:8.7.1
+    image: node:20-alpine
     restart: "no"
+    working_dir: /bootstrap
     command:
-      - /bin/sh
-      - -ec
-      - |
-        es_url="$${ELASTICSEARCH_URL:-http://elasticsearch:9200}"
-        ilm_policy_name="$${ILM_POLICY_NAME:-opc-logs-policy}"
-        ilm_policy_file="$${ILM_POLICY_FILE:-/assets/ilm-policy.json}"
-        index_template_name="$${INDEX_TEMPLATE_NAME:-opc-logs-template}"
-        index_template_file="$${INDEX_TEMPLATE_FILE:-/assets/index-template.json}"
-        snapshot_repository_name="$${SNAPSHOT_REPOSITORY_NAME:-opc_snapshots}"
-        snapshot_repository_file="$${SNAPSHOT_REPOSITORY_FILE:-/assets/snapshot-repository.json}"
-        until curl -fsS "$${es_url}/_cluster/health" >/dev/null 2>&1; do sleep 5; done
-        curl -fsS -X PUT "$${es_url}/_ilm/policy/$${ilm_policy_name}" -H "Content-Type: application/json" --data @"$${ilm_policy_file}" >/dev/null
-        curl -fsS -X PUT "$${es_url}/_index_template/$${index_template_name}" -H "Content-Type: application/json" --data @"$${index_template_file}" >/dev/null
-        curl -fsS -X PUT "$${es_url}/_snapshot/$${snapshot_repository_name}" -H "Content-Type: application/json" --data @"$${snapshot_repository_file}" >/dev/null
+      - node
+      - /bootstrap/1.bootstrap-elastic.js
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ILM_POLICY_NAME: opc-logs-policy
+      ILM_POLICY_FILE: /assets/ilm-policy.json
+      INDEX_TEMPLATE_NAME: opc-logs-template
+      INDEX_TEMPLATE_FILE: /assets/index-template.json
+      SNAPSHOT_REPOSITORY_NAME: opc_snapshots
+      SNAPSHOT_REPOSITORY_FILE: /assets/snapshot-repository.json
     volumes:
       - ../modules/elk/assets:/assets:ro
+      - ../modules/elk/node_specs:/bootstrap:ro
     depends_on:
       elasticsearch:
         condition: service_healthy
