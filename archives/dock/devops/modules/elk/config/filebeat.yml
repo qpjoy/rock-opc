@@ -9,6 +9,16 @@ filebeat.inputs:
           target: ""
           add_error_key: true
 
+  - type: filestream
+    id: opc-demo-app-logs
+    enabled: true
+    paths:
+      - /var/log/demo-app/*.log
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+
 processors:
   - add_fields:
       target: ""

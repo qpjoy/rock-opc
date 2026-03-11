@@ -121,10 +121,25 @@ services:
     volumes:
       - ../modules/elk/config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ../modules/elk/samples/logs:/var/log/opc:ro
+      - ../modules/demo-app/runtime/logs:/var/log/demo-app:ro
       - filebeat_data:/usr/share/filebeat/data
     depends_on:
       logstash:
         condition: service_started
+
+  demo-app:
+    <<: *opc-defaults
+    profiles: ["demo", "full"]
+    build:
+      context: ../modules/demo-app
+    environment:
+      PORT: ${DEMO_APP_PORT:-8088}
+      LOG_DIR: /app/runtime/logs
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${DEMO_APP_PORT:-8088}:8088"
+    volumes:
+      - ../modules/demo-app/runtime/logs:/app/runtime/logs
 
   elk-setup:
     <<: *opc-defaults

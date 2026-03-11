@@ -11,6 +11,7 @@
 - `modules/elk/setup`: one-shot initialization scripts.
 - `modules/prometheus`: Prometheus configuration.
 - `modules/grafana`: Grafana provisioning.
+- `modules/demo-app`: Node.js demo service for logs and metrics training.
 - `modules/nginx`: reverse proxy placeholder and ingress layer.
 - `docs/architecture.md`: architecture and evolution path.
 - `.env.example`: shared environment template.
@@ -53,6 +54,7 @@ cd archives/dock/devops
 cp .env.example .env
 docker compose -f compose/compose.yml --profile elk up -d
 docker compose -f compose/compose.yml --profile monitoring up -d
+docker compose -f compose/compose.yml --profile demo up -d
 docker compose -f compose/compose.yml --profile cicd up -d
 docker compose -f compose/compose.yml --profile scm up -d
 docker compose -f compose/compose.yml --profile gateway up -d
@@ -79,6 +81,7 @@ This startup includes `filebeat` and a one-shot `elk-setup` initializer.
 - Elasticsearch: `http://localhost:9200`
 - Kibana: `http://localhost:5601`
 - Logstash TCP JSON: `localhost:5000`
+- Demo App: `http://localhost:8088`
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3000`
 - Jenkins: `http://localhost:8080`
@@ -119,6 +122,12 @@ The monitoring profile now includes:
 - cAdvisor
 - elasticsearch-exporter
 - blackbox-exporter
+
+The demo profile includes:
+
+- a Node.js app that emits structured JSON logs
+- a Prometheus `/metrics` endpoint
+- endpoints for normal, slow, and error scenarios
 
 Platform note:
 
