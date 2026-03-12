@@ -6,8 +6,10 @@ This module can run independently and is also the logging foundation for the int
 
 - Elasticsearch single-node baseline
 - Kibana UI
+- Kibana bootstrap for data view and saved queries
 - Logstash ingest for Beats and TCP JSON
 - Filebeat sample shipper
+- Node demo app with browser-driven scenarios
 - ILM and index template bootstrap
 - Filesystem snapshot repository bootstrap
 - Snapshot scheduler with retention cleanup
@@ -34,6 +36,14 @@ After startup, `elk-setup` registers:
 - Snapshot repository: `opc_snapshots`
 - Data stream target from Logstash: `logs-opc-default`
 
+`kibana-setup` also registers:
+
+- Data view: `OPC Logs`
+- Saved query: `OPC Demo Errors`
+- Saved query: `OPC Demo Slow Requests`
+- Saved query: `OPC Demo Security Events`
+- Saved query: `OPC Demo Order Flow`
+
 The hot/warm overlay registers a separate pair:
 
 - ILM policy: `opc-logs-policy-ha`
@@ -59,7 +69,12 @@ $writer.Dispose()
 $client.Dispose()
 ```
 
-Filebeat also ships sample NDJSON logs from `samples/logs/`.
+Filebeat also ships:
+
+- sample NDJSON logs from `samples/logs/`
+- demo app logs from `../demo-app`
+
+The demo app is available at `http://localhost:8088`.
 
 ## Snapshot example
 
@@ -77,6 +92,13 @@ Key env vars from `.env`:
 ## Restore drill
 
 See `docs/restore-drill.md` for the recovery rehearsal flow.
+
+## Kibana walkthrough
+
+See:
+
+- `docs/kibana-best-practices.md`
+- `docs/kibana-demo-playbook.md`
 
 ## Hot/Warm overlay
 

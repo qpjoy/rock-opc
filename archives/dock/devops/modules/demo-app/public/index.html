@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OPC ELK Demo App</title>
+    <style>
+      :root {
+        --bg: #f6efe4;
+        --panel: #fffaf1;
+        --line: #d8c8aa;
+        --ink: #1f1f1f;
+        --accent: #8a3b12;
+        --accent-soft: #efe1c8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        background: radial-gradient(circle at top, #fff8ee 0%, var(--bg) 55%, #e3d4b5 100%);
+        color: var(--ink);
+      }
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+      .hero, .panel {
+        border: 1px solid var(--line);
+        background: rgba(255, 250, 241, 0.92);
+        border-radius: 20px;
+        box-shadow: 0 18px 48px rgba(67, 35, 12, 0.08);
+      }
+      .hero { padding: 28px; margin-bottom: 20px; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      .panel { padding: 20px; }
+      h1, h2 { margin: 0 0 12px; }
+      p, li { line-height: 1.6; }
+      button {
+        width: 100%;
+        margin: 8px 0 0;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff7ef;
+        font: inherit;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      code {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #f1e2c4;
+      }
+      pre {
+        margin: 0;
+        padding: 16px;
+        border-radius: 14px;
+        background: #1f1f1f;
+        color: #f8f2e8;
+        min-height: 260px;
+        overflow: auto;
+      }
+      .links a {
+        color: var(--accent);
+        margin-right: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <h1>OPC ELK Demo App</h1>
+        <p>这个页面专门用来给 Kibana 喂入几类典型日志：正常业务、慢请求、错误、认证、批处理。建议一边点击下面的场景，一边在 Kibana Discover 中使用预置 Saved Query 观察结果。</p>
+        <div class="links">
+          <a id="kibana-link" href="http://localhost:5601" target="_blank" rel="noreferrer">打开 Kibana</a>
+          <a href="/healthz" target="_blank" rel="noreferrer">查看 Healthz</a>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <h2>正常业务</h2>
+          <p>生成 catalog 和 order 类日志，适合演示嵌套对象和业务字段。</p>
+          <button data-method="GET" data-path="/api/catalog">GET /api/catalog</button>
+          <button data-method="POST" data-path="/api/orders">POST /api/orders</button>
+        </div>
+        <div class="panel">
+          <h2>故障与性能</h2>
+          <p>生成错误和慢请求日志，适合在 Kibana 里按 <code>log.level</code> 与 <code>labels.demo_scenario</code> 过滤。</p>
+          <button data-method="GET" data-path="/api/error">GET /api/error</button>
+          <button data-method="GET" data-path="/api/slow?delayMs=2400">GET /api/slow</button>
+        </div>
+        <div class="panel">
+          <h2>安全与审计</h2>
+          <p>生成认证成功和失败事件，便于演示安全场景的日志分析。</p>
+          <button data-method="GET" data-path="/api/security?outcome=success">GET /api/security success</button>
+          <button data-method="GET" data-path="/api/security?outcome=failure">GET /api/security failure</button>
+        </div>
+        <div class="panel">
+          <h2>后台任务</h2>
+          <p>生成批处理与运维类事件，适合讲解 event.category 和 tags 的使用方式。</p>
+          <button data-method="GET" data-path="/api/batch">GET /api/batch</button>
+          <button class="secondary" data-method="POST" data-path="/api/reset">POST /api/reset</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>响应输出</h2>
+        <pre id="output">点击上方按钮后，这里会显示接口返回值。</pre>
+      </section>
+    </main>
+    <script>
+      const output = document.getElementById('output');
+      const kibanaLink = document.getElementById('kibana-link');
+      kibanaLink.href = `${window.location.protocol}//${window.location.hostname}:5601`;
+      async function runScenario(method, path) {
+        output.textContent = `Running ${method} ${path} ...`;
+        const response = await fetch(path, { method });
+        const text = await response.text();
+        output.textContent = `${method} ${path}\nstatus=${response.status}\n\n${text}`;
+      }
+      document.querySelectorAll('button[data-path]').forEach((button) => {
+        button.addEventListener('click', () => runScenario(button.dataset.method, button.dataset.path));
+      });
+    </script>
+  </body>
+</html>

@@ -159,6 +159,9 @@ services:
     image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.13.4}
     restart: unless-stopped
     environment:
+      ELASTICSEARCH_HOSTS: http://es-coord01:9200
+      ELASTIC_DATASET: opc
+      ELASTIC_NAMESPACE: default
       LS_JAVA_OPTS: -Xms${LOGSTASH_HEAP:-512m} -Xmx${LOGSTASH_HEAP:-512m}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
@@ -182,6 +185,7 @@ services:
     volumes:
       - ../config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ../samples/logs:/var/log/opc:ro
+      - demo_app_logs:/var/log/demo-app:ro
       - filebeat_data:/usr/share/filebeat/data
     depends_on:
       - logstash
@@ -205,9 +209,31 @@ services:
       SNAPSHOT_REPOSITORY_FILE: /assets/snapshot-repository.json
     volumes:
       - ../assets:/assets:ro
-      - ../node_specs:/bootstrap:ro
+      - ../node_scripts:/bootstrap:ro
     depends_on:
       - es-coord01
+    networks:
+      - elk_ha
+
+  kibana-setup:
+    image: node:20-alpine
+    restart: "no"
+    working_dir: /bootstrap
+    command:
+      - node
+      - /bootstrap/2.bootstrap-kibana.js
+    environment:
+      KIBANA_URL: http://kibana:5601
+      KIBANA_DATA_VIEW_NAME: OPC Logs HA
+      KIBANA_DATA_VIEW_TITLE: logs-opc-*
+      KIBANA_DATA_VIEW_TIME_FIELD: '@timestamp'
+      KIBANA_SAVED_QUERIES_FILE: /assets/kibana-saved-queries.json
+    volumes:
+      - ../assets:/assets:ro
+      - ../node_scripts:/bootstrap:ro
+    depends_on:
+      - kibana
+      - elk-setup
     networks:
       - elk_ha
 
@@ -277,3 +303,4 @@ volumes:
   coord01_data:
   elasticsearch_snapshots:
   filebeat_data:
+  demo_app_logs:

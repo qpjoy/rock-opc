@@ -8,13 +8,25 @@ filebeat.inputs:
       - ndjson:
           target: ""
           add_error_key: true
+    fields_under_root: true
+    fields:
+      service:
+        name: opc-sample
+      labels:
+        environment: dev
+
+  - type: filestream
+    id: opc-demo-app-logs
+    enabled: true
+    paths:
+      - /var/log/demo-app/*.ndjson
+      - /var/log/demo-app/*.log
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
 
 processors:
-  - add_fields:
-      target: ""
-      fields:
-        service: opc-sample
-        env: dev
   - add_host_metadata: {}
   - add_cloud_metadata: {}
 

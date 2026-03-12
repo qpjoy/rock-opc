@@ -2,4 +2,7 @@ server.name: opc-kibana
 server.host: 0.0.0.0
 i18n.locale: zh-CN
 telemetry.enabled: false
+newsfeed.enabled: false
+xpack.fleet.enabled: false
+elasticsearch.requestTimeout: 120000
 monitoring.ui.container.elasticsearch.enabled: true
