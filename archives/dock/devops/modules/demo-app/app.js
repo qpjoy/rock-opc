@@ -24,6 +24,21 @@ const state = {
   errorCount: 0,
 };
 
+function resolveMovieLensSource() {
+  const candidates = [
+    path.join(importSourceDir, 'movies.csv'),
+    path.join(__dirname, 'data', 'movies.csv'),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`MovieLens source file not found. Checked: ${candidates.join(', ')}`);
+}
+
 function randomId(prefix) {
   return `${prefix}-${crypto.randomBytes(4).toString('hex')}`;
 }
@@ -297,7 +312,7 @@ async function handleBatch(request, response, urlObject) {
 async function handleMovieImport(request, response, urlObject) {
   const startedAt = Date.now();
   state.requestCount += 1;
-  const sourceFile = path.join(importSourceDir, 'movies.csv');
+  const sourceFile = resolveMovieLensSource();
   const importId = randomId('movielens');
   const targetFile = path.join(importTargetDir, `${importId}.csv`);
 
@@ -323,6 +338,7 @@ async function handleMovieImport(request, response, urlObject) {
     ok: true,
     importId,
     rows: lineCount,
+    sourceFile,
     targetFile: path.basename(targetFile),
   });
 }
@@ -344,6 +360,8 @@ async function handleMovieImportStatus(request, response, urlObject) {
     if (result.ok) {
       const payload = await result.json();
       indexedCount = payload.count;
+    } else if (result.status === 404) {
+      indexedCount = 0;
     } else {
       lastError = `Elasticsearch count returned ${result.status}`;
     }
@@ -421,7 +439,11 @@ function route(request, response) {
           demo_scenario: 'unhandled',
         },
       });
-      sendJson(response, 500, { ok: false, message: 'Unhandled demo-app error' });
+      sendJson(response, 500, {
+        ok: false,
+        message: 'Unhandled demo-app error',
+        detail: error.message,
+      });
     });
   };
 
