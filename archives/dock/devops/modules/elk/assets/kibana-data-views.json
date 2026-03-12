@@ -1,0 +1,14 @@
+[
+  {
+    "name": "OPC Logs",
+    "title": "logs-opc-*",
+    "timeFieldName": "@timestamp",
+    "setDefault": true
+  },
+  {
+    "name": "MovieLens Movies",
+    "title": "movies*",
+    "timeFieldName": "@timestamp",
+    "setDefault": false
+  }
+]

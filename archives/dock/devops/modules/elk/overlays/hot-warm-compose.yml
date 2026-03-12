@@ -170,6 +170,7 @@ services:
     volumes:
       - ../config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
       - ../pipeline:/usr/share/logstash/pipeline:ro
+      - movielens_import:/data/import
     depends_on:
       - es-coord01
     networks:
@@ -227,6 +228,7 @@ services:
       KIBANA_DATA_VIEW_NAME: OPC Logs HA
       KIBANA_DATA_VIEW_TITLE: logs-opc-*
       KIBANA_DATA_VIEW_TIME_FIELD: '@timestamp'
+      KIBANA_DATA_VIEWS_FILE: /assets/kibana-data-views.json
       KIBANA_SAVED_QUERIES_FILE: /assets/kibana-saved-queries.json
     volumes:
       - ../assets:/assets:ro
@@ -304,3 +306,4 @@ volumes:
   elasticsearch_snapshots:
   filebeat_data:
   demo_app_logs:
+  movielens_import:

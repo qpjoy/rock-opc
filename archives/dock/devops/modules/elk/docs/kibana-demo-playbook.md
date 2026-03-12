@@ -29,12 +29,14 @@ This profile now starts:
 The bootstrap flow creates:
 
 - data view `OPC Logs`
+- data view `MovieLens Movies`
 - default time field `@timestamp`
 - saved queries:
   - `OPC Demo Errors`
   - `OPC Demo Slow Requests`
   - `OPC Demo Security Events`
   - `OPC Demo Order Flow`
+  - `MovieLens Import`
 
 ## Suggested walkthrough
 
@@ -48,6 +50,10 @@ The bootstrap flow creates:
 8. Run saved query `OPC Demo Errors`.
 9. Trigger `GET /api/security?outcome=failure`.
 10. Run saved query `OPC Demo Security Events`.
+11. Trigger `POST /api/import/movielens`.
+12. Switch Discover data view to `MovieLens Movies`.
+13. Run saved query `MovieLens Import`.
+14. Check `GET /api/import/movielens/status` until `indexedCount` grows.
 
 ## Useful KQL examples
 
@@ -57,6 +63,8 @@ service.name : "demo-app" and log.level : "error"
 service.name : "demo-app" and labels.demo_scenario : "slow-request"
 event.category : "authentication" and security.outcome : "failure"
 event.category : "order" and order.amount >= 1000
+event.dataset : "movielens"
+movie.genres : "Comedy"
 ```
 
 ## What to teach in Discover

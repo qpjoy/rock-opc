@@ -109,6 +109,7 @@ services:
     volumes:
       - ../modules/elk/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
       - ../modules/elk/pipeline:/usr/share/logstash/pipeline:ro
+      - movielens_import:/data/import
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -140,6 +141,9 @@ services:
       PORT: ${DEMO_APP_PORT:-8088}
       APP_ENV: ${DEMO_APP_ENV:-dev}
       LOG_FILE: /var/log/demo-app/demo-app.ndjson
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      IMPORT_SOURCE_DIR: /app/feeds/logstash/movielens
+      IMPORT_TARGET_DIR: /var/lib/demo-import
       SERVICE_VERSION: 0.1.0
       TZ: ${TZ:-Asia/Shanghai}
     ports:
@@ -147,7 +151,9 @@ services:
     volumes:
       - ../modules/demo-app/app.js:/app/app.js:ro
       - ../modules/demo-app/public:/app/public:ro
+      - ../modules/elk/feeds/logstash/movielens:/app/feeds/logstash/movielens:ro
       - demo_app_logs:/var/log/demo-app
+      - movielens_import:/var/lib/demo-import
 
   elk-setup:
     <<: *opc-defaults
@@ -187,6 +193,7 @@ services:
       KIBANA_DATA_VIEW_NAME: OPC Logs
       KIBANA_DATA_VIEW_TITLE: logs-opc-*
       KIBANA_DATA_VIEW_TIME_FIELD: '@timestamp'
+      KIBANA_DATA_VIEWS_FILE: /assets/kibana-data-views.json
       KIBANA_SAVED_QUERIES_FILE: /assets/kibana-saved-queries.json
     volumes:
       - ../modules/elk/assets:/assets:ro
@@ -325,6 +332,7 @@ volumes:
   elasticsearch_snapshots:
   filebeat_data:
   demo_app_logs:
+  movielens_import:
   prometheus_data:
   grafana_data:
   jenkins_home:

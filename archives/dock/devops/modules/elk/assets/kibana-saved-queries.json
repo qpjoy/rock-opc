@@ -22,5 +22,11 @@
     "title": "OPC Demo Order Flow",
     "description": "Order placement and inventory reservation logs.",
     "query": "service.name : \"demo-app\" and event.category : \"order\""
+  },
+  {
+    "id": "opc-movielens-import",
+    "title": "MovieLens Import",
+    "description": "CSV imports loaded through the dedicated MovieLens pipeline.",
+    "query": "event.dataset : \"movielens\""
   }
 ]

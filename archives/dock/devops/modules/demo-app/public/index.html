@@ -113,6 +113,12 @@
           <button data-method="GET" data-path="/api/batch">GET /api/batch</button>
           <button class="secondary" data-method="POST" data-path="/api/reset">POST /api/reset</button>
         </div>
+        <div class="panel">
+          <h2>MovieLens 导入</h2>
+          <p>把 <code>movies.csv</code> 复制到 Logstash 导入目录，走独立 CSV pipeline 写入 <code>movies</code> 索引。</p>
+          <button data-method="POST" data-path="/api/import/movielens">POST /api/import/movielens</button>
+          <button class="secondary" data-method="GET" data-path="/api/import/movielens/status">GET /api/import/movielens/status</button>
+        </div>
       </section>
 
       <section class="panel">

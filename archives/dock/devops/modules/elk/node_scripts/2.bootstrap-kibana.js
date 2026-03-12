@@ -56,6 +56,38 @@ async function setDefaultDataView(kibanaUrl, dataViewId) {
   console.log(`[kibana-setup] set default data view to ${dataViewId}`);
 }
 
+async function ensureDataViews(kibanaUrl, filePath, fallbackDefinition) {
+  const definitions = filePath
+    ? await readJson(filePath)
+    : [fallbackDefinition];
+
+  let defaultId = null;
+
+  for (const definition of definitions) {
+    const id = await ensureDataView(
+      kibanaUrl,
+      definition.title,
+      definition.name,
+      definition.timeFieldName || '@timestamp'
+    );
+
+    if (definition.setDefault) {
+      defaultId = id;
+    }
+  }
+
+  if (!defaultId && definitions[0]) {
+    defaultId = await ensureDataView(
+      kibanaUrl,
+      definitions[0].title,
+      definitions[0].name,
+      definitions[0].timeFieldName || '@timestamp'
+    );
+  }
+
+  return defaultId;
+}
+
 async function upsertSavedQuery(kibanaUrl, queryDefinition) {
   await requestJson(`${kibanaUrl}/api/saved_objects/query/${encodeURIComponent(queryDefinition.id)}?overwrite=true`, {
     method: 'POST',
@@ -84,6 +116,7 @@ async function main() {
   const dataViewName = process.env.KIBANA_DATA_VIEW_NAME || 'OPC Logs';
   const dataViewTitle = process.env.KIBANA_DATA_VIEW_TITLE || 'logs-opc-*';
   const timeFieldName = process.env.KIBANA_DATA_VIEW_TIME_FIELD || '@timestamp';
+  const dataViewsFile = process.env.KIBANA_DATA_VIEWS_FILE;
   const savedQueriesFile = process.env.KIBANA_SAVED_QUERIES_FILE;
 
   console.log(`[kibana-setup] waiting for Kibana at ${kibanaUrl}`);
@@ -94,7 +127,12 @@ async function main() {
   );
   console.log('[kibana-setup] Kibana is ready');
 
-  const dataViewId = await ensureDataView(kibanaUrl, dataViewTitle, dataViewName, timeFieldName);
+  const dataViewId = await ensureDataViews(kibanaUrl, dataViewsFile, {
+    name: dataViewName,
+    title: dataViewTitle,
+    timeFieldName,
+    setDefault: true,
+  });
   await setDefaultDataView(kibanaUrl, dataViewId);
 
   if (savedQueriesFile) {

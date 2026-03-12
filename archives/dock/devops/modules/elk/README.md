@@ -10,6 +10,7 @@ This module can run independently and is also the logging foundation for the int
 - Logstash ingest for Beats and TCP JSON
 - Filebeat sample shipper
 - Node demo app with browser-driven scenarios
+- Dedicated CSV import path for MovieLens demos
 - ILM and index template bootstrap
 - Filesystem snapshot repository bootstrap
 - Snapshot scheduler with retention cleanup
@@ -75,6 +76,14 @@ Filebeat also ships:
 - demo app logs from `../demo-app`
 
 The demo app is available at `http://localhost:8088`.
+
+For the legacy CSV onboarding pattern, the stack also supports a dedicated MovieLens import:
+
+- source file: `feeds/logstash/movielens/movies.csv`
+- trigger: `POST /api/import/movielens`
+- target index: `movies`
+
+This runs alongside Beats and TCP JSON ingestion without mixing reference data into the main log data stream.
 
 ## Snapshot example
 

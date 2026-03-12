@@ -11,8 +11,12 @@ const envName = process.env.APP_ENV || 'dev';
 const serviceVersion = process.env.SERVICE_VERSION || '0.1.0';
 const serviceName = 'demo-app';
 const logFile = process.env.LOG_FILE || '/var/log/demo-app/demo-app.ndjson';
+const elasticsearchUrl = process.env.ELASTICSEARCH_URL || 'http://elasticsearch:9200';
+const importSourceDir = process.env.IMPORT_SOURCE_DIR || '/app/feeds/logstash/movielens';
+const importTargetDir = process.env.IMPORT_TARGET_DIR || '/var/lib/demo-import';
 
 fs.mkdirSync(path.dirname(logFile), { recursive: true });
+fs.mkdirSync(importTargetDir, { recursive: true });
 
 const state = {
   requestCount: 0,
@@ -290,6 +294,84 @@ async function handleBatch(request, response, urlObject) {
   sendJson(response, 200, { ok: true, emitted: 'batch-job' });
 }
 
+async function handleMovieImport(request, response, urlObject) {
+  const startedAt = Date.now();
+  state.requestCount += 1;
+  const sourceFile = path.join(importSourceDir, 'movies.csv');
+  const importId = randomId('movielens');
+  const targetFile = path.join(importTargetDir, `${importId}.csv`);
+
+  fs.copyFileSync(sourceFile, targetFile);
+  const lineCount = fs.readFileSync(sourceFile, 'utf8').trim().split('\n').length - 1;
+
+  logRequest(request, urlObject, 202, startedAt, {
+    category: 'reference',
+    action: 'catalog.import.requested',
+    message: 'MovieLens CSV queued for Logstash import',
+    demoScenario: 'movielens-import',
+    tags: ['demo', 'import', 'movielens'],
+    labels: {
+      import_id: importId,
+      import_rows: String(lineCount),
+    },
+    metrics: {
+      rows: lineCount,
+    },
+  });
+
+  sendJson(response, 202, {
+    ok: true,
+    importId,
+    rows: lineCount,
+    targetFile: path.basename(targetFile),
+  });
+}
+
+async function handleMovieImportStatus(request, response, urlObject) {
+  const startedAt = Date.now();
+  state.requestCount += 1;
+  const queuedFiles = fs
+    .readdirSync(importTargetDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.csv'))
+    .map((entry) => entry.name)
+    .sort();
+
+  let indexedCount = null;
+  let lastError = null;
+
+  try {
+    const result = await fetch(`${elasticsearchUrl}/movies/_count`);
+    if (result.ok) {
+      const payload = await result.json();
+      indexedCount = payload.count;
+    } else {
+      lastError = `Elasticsearch count returned ${result.status}`;
+    }
+  } catch (error) {
+    lastError = error.message;
+  }
+
+  logRequest(request, urlObject, 200, startedAt, {
+    category: 'reference',
+    action: 'catalog.import.status',
+    message: 'MovieLens import status checked',
+    demoScenario: 'movielens-import',
+    tags: ['demo', 'import', 'movielens'],
+    metrics: {
+      queued_files: queuedFiles.length,
+      indexed_count: indexedCount,
+    },
+  });
+
+  sendJson(response, 200, {
+    ok: true,
+    queuedFiles,
+    indexedCount,
+    elasticsearchUrl,
+    lastError,
+  });
+}
+
 async function handleReset(request, response, urlObject) {
   const startedAt = Date.now();
   state.requestCount = 0;
@@ -380,6 +462,16 @@ function route(request, response) {
 
   if (request.method === 'GET' && urlObject.pathname === '/api/batch') {
     run(handleBatch);
+    return;
+  }
+
+  if (request.method === 'POST' && urlObject.pathname === '/api/import/movielens') {
+    run(handleMovieImport);
+    return;
+  }
+
+  if (request.method === 'GET' && urlObject.pathname === '/api/import/movielens/status') {
+    run(handleMovieImportStatus);
     return;
   }
 
